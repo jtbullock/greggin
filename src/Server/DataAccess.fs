@@ -33,7 +33,7 @@ module GeoLocation =
 
         let location = {
             LatLong = latLong
-            Town = postcode.Result.AdminDistrict
+            Town = "A Town"
             Region = postcode.Result.Nuts
         }
 

@@ -9,9 +9,18 @@
     <Compile Include="DataAccess.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Server.fs" />
+    <None Include="AzureDataTableExperiments.fsx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Azure.Data.Tables" Version="12.8.0">
+      <GeneratePathProperty></GeneratePathProperty>
+    </PackageReference>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.16.0">
+      <GeneratePathProperty></GeneratePathProperty>
+    </PackageReference>
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
