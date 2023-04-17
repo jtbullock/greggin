@@ -43,8 +43,8 @@ let init () =
         Ingredients = List.empty
         Recipes = Array.empty
     },
-    Cmd.none
-
+    Cmd.OfAsync.either dojoApi.GetRecipes () RecipesLoaded Error
+    
 //let saveTheThing recipe = async {
 //    dojoApi.PostRecipe recipe
 //}
