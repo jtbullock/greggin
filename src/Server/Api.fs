@@ -3,6 +3,11 @@ module Api
 open DataAccess
 open FSharp.Data.UnitSystems.SI.UnitNames
 open Shared
+open System.Text.Json
+open Azure.Storage.Blobs
+open System.IO
+open System.Text
+open System.Text
 
 let london = {
     Latitude = 51.5074
@@ -58,6 +63,33 @@ let getWeather postcode = async {
     return asWeatherResponse weatherInfo
 }
 
+let toMemoryStream (bytes: byte array) = new MemoryStream( bytes )
+
+let postRecipe (recipe:Recipe) = async {
+    let storageConnString = "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
+    
+    let container = BlobContainerClient(storageConnString, "recipes")
+    let blockBlob = container.GetBlobClient "recipes.json"
+
+    //let recipes = Map.empty<string, Ingredient list>
+
+    //let serialized = JsonSerializer.Serialize(recipes.Add (recipe.Name, recipe.Ingredients))
+    //let bytes = System.Text.Encoding.UTF8.GetBytes serialized
+    //use stream = new MemoryStream( bytes )
+
+    let empty = Map.empty<string, Ingredient list>
+    let withRecipe = Map.add recipe.Name recipe.Ingredients empty
+    let serialized = JsonSerializer.Serialize withRecipe
+    let bytes = System.Text.Encoding.UTF8.GetBytes serialized
+    let memoryStream = toMemoryStream bytes
+    blockBlob.Upload (memoryStream, true)
+
+
+    //blockBlob.Upload new MemoryStream( bytes )
+
+    return Array.empty<Recipe>
+}
+
 let dojoApi = {
     GetDistance = getDistanceFromLondon
 
@@ -67,4 +99,6 @@ let dojoApi = {
 
 (* Task 4.2 WEATHER: Hook up the weather endpoint to the getWeather function. *)
     GetWeather = getWeather
+
+    PostRecipe = postRecipe
 }

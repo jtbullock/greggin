@@ -2,6 +2,18 @@ namespace Shared
 
 type LatLong = { Latitude: float; Longitude: float }
 
+type Ingredient = {
+    Amount: double
+    Name: string
+}
+
+//let test = "[{"Name": "First", "Ingredients": [{"Amount": 3, "Name": "Paper"}, {"Amount": 2, "Name": "Coal dust"}]}]"
+
+type Recipe = {
+    Name: string
+    Ingredients: Ingredient list
+}
+
 type Location = {
     Town: string
     Region: string
@@ -81,6 +93,7 @@ type IDojoApi = {
     GetDistance: string -> LocationResponse Async
     GetCrimes: string -> CrimeResponse array Async
     GetWeather: string -> WeatherResponse Async
+    PostRecipe: Recipe -> Recipe array Async
 }
 
 /// Provides validation on data. Shared across both client and server.
