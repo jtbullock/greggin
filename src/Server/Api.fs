@@ -65,7 +65,7 @@ let getWeather postcode = async {
 
 let toMemoryStream (bytes: byte array) = new MemoryStream( bytes )
 
-let getRecipes = async {
+let private getRecipesDict () = async {
     let storageConnString = "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
     
     let container = BlobContainerClient(storageConnString, "recipes")
@@ -74,7 +74,11 @@ let getRecipes = async {
     // Fancier way to do this: https://www.planetgeek.ch/2021/04/22/our-journey-to-f-making-async-understand-tasks/
     let! downloadResult = blockBlob.DownloadAsync () |> Async.AwaitTask
 
-    let recipes = JsonSerializer.Deserialize<Map<string, Ingredient list>> downloadResult.Value.Content
+    return JsonSerializer.Deserialize<Map<string, Ingredient list>> downloadResult.Value.Content
+}
+
+let getRecipes () = async {
+    let! recipes = getRecipesDict()
     let recipesList = Map.toArray recipes
     return Array.map (fun r -> { Name = (fst r); Ingredients = (snd r) } ) recipesList 
 }
@@ -85,14 +89,8 @@ let postRecipe (recipe:Recipe) = async {
     let container = BlobContainerClient(storageConnString, "recipes")
     let blockBlob = container.GetBlobClient "recipes.json"
 
-    //let recipes = Map.empty<string, Ingredient list>
-
-    //let serialized = JsonSerializer.Serialize(recipes.Add (recipe.Name, recipe.Ingredients))
-    //let bytes = System.Text.Encoding.UTF8.GetBytes serialized
-    //use stream = new MemoryStream( bytes )
-
-    let empty = Map.empty<string, Ingredient list>
-    let withRecipe = Map.add recipe.Name recipe.Ingredients empty
+    let! recipes = getRecipesDict()
+    let withRecipe = Map.add recipe.Name recipe.Ingredients recipes
     let serialized = JsonSerializer.Serialize withRecipe
     let bytes = System.Text.Encoding.UTF8.GetBytes serialized
     let memoryStream = toMemoryStream bytes

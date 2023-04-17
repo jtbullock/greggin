@@ -94,7 +94,7 @@ type IDojoApi = {
     GetCrimes: string -> CrimeResponse array Async
     GetWeather: string -> WeatherResponse Async
     PostRecipe: Recipe -> Recipe array Async
-    GetRecipes: Recipe array Async
+    GetRecipes: unit -> Recipe array Async
 }
 
 /// Provides validation on data. Shared across both client and server.
