@@ -18,6 +18,7 @@ open Browser.Types
 type Model = {
     Count: int
     Ingredients: (float32 * string) list
+    Recipes: Recipe array
 }
 
 type Msg =
@@ -28,19 +29,21 @@ type Msg =
     | Error of exn
     | RecipeSaved of Recipe array
     | SaveRecipe of Recipe
+    | RecipesLoaded of Recipe array
+
+let dojoApi =
+    Remoting.createApi ()
+    |> Remoting.withRouteBuilder Route.builder
+    |> Remoting.buildProxy<IDojoApi>
 
 /// The init function is called to start the message pump with an initial view.
 let init () =
     {
         Count = 0
         Ingredients = List.empty
+        Recipes = Array.empty
     },
-    Cmd.none
-
-let dojoApi =
-    Remoting.createApi ()
-    |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.buildProxy<IDojoApi>
+    Cmd.OfAsync.result dojoApi.GetRecipes
     
 //let saveTheThing recipe = async {
 //    dojoApi.PostRecipe recipe
@@ -56,6 +59,7 @@ let update msg model =
     | Error _ -> model, Cmd.none
     | RecipeSaved _ -> model, Cmd.none
     | SaveRecipe r -> model, Cmd.OfAsync.either dojoApi.PostRecipe r RecipeSaved Error
+    | RecipesLoaded r -> { model with Recipes = r }, Cmd.none
 
 let card (title:string) (content: ReactElement list) =
     Html.div [
