@@ -8,6 +8,7 @@ open Azure.Storage.Blobs
 open System.IO
 open System.Text
 open System.Text
+open Microsoft.Extensions.Configuration
 
 let london = {
     Latitude = 51.5074
@@ -65,10 +66,10 @@ let getWeather postcode = async {
 
 let toMemoryStream (bytes: byte array) = new MemoryStream( bytes )
 
-let private getRecipesDict () = async {
-    let storageConnString = "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
+let private getRecipesDict (blobConnString) = async {
+    //let storageConnString = "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
     
-    let container = BlobContainerClient(storageConnString, "recipes")
+    let container = BlobContainerClient(blobConnString, "recipes")
     let blockBlob = container.GetBlobClient "recipes.json"
 
     // Fancier way to do this: https://www.planetgeek.ch/2021/04/22/our-journey-to-f-making-async-understand-tasks/
@@ -77,10 +78,12 @@ let private getRecipesDict () = async {
     return JsonSerializer.Deserialize<Map<string, Ingredient list>> downloadResult.Value.Content
 }
 
-let getRecipes () = async {
-    let! recipes = getRecipesDict()
-    let recipesList = Map.toArray recipes
-    return Array.map (fun r -> { Name = (fst r); Ingredients = (snd r) } ) recipesList 
+let recipeMapToResponseArray(recipes: Map<string, Ingredient list>) =
+    recipes |> Map.toArray |> Array.map (fun r -> { Name = (fst r); Ingredients = (snd r) } )
+
+let getRecipes (blobConnString) = async {
+    let! recipes = getRecipesDict blobConnString
+    return recipeMapToResponseArray recipes
 }
 
 let postRecipe (recipe:Recipe) = async {
@@ -89,20 +92,17 @@ let postRecipe (recipe:Recipe) = async {
     let container = BlobContainerClient(storageConnString, "recipes")
     let blockBlob = container.GetBlobClient "recipes.json"
 
-    let! recipes = getRecipesDict()
+    let! recipes = getRecipesDict(storageConnString)
     let withRecipe = Map.add recipe.Name recipe.Ingredients recipes
     let serialized = JsonSerializer.Serialize withRecipe
     let bytes = System.Text.Encoding.UTF8.GetBytes serialized
     let memoryStream = toMemoryStream bytes
     blockBlob.Upload (memoryStream, true)
 
-
-    //blockBlob.Upload new MemoryStream( bytes )
-
-    return Array.empty<Recipe>
+    return recipeMapToResponseArray withRecipe
 }
 
-let dojoApi = {
+let dojoApi (config:IConfiguration) = {
     GetDistance = getDistanceFromLondon
 
     (* Task 1.1 CRIME: Bind the getCrimeReport function to the GetCrimes method to
@@ -114,5 +114,5 @@ let dojoApi = {
 
     PostRecipe = postRecipe
 
-    GetRecipes = getRecipes
+    GetRecipes = (fun _ -> getRecipes (config.["ConnectionStrings:BlobStorage"]))
 }

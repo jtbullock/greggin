@@ -1,65 +1,62 @@
 module Index
 
 open Elmish
-
 open Feliz
 open Feliz.Bulma
-open Feliz.Recharts
-open Feliz.PigeonMaps
-open Elmish.SweetAlert
-open Fable.Core.JsInterop
-
 open Fable.Remoting.Client
 open Shared
-open Fable.Core
-open Browser.Types
 
-/// The overall data model driving the view.
+// *************
+// Model
+
+type EditingStatus =
+    | NotEditing
+    | New
+    | Editing of string
+
 type Model = {
     Count: int
-    Ingredients: (float32 * string) list
+    Ingredients: Ingredient list
     Recipes: Recipe array
+    EditingStatus: EditingStatus
 }
 
+// ***************
+// Update
+
 type Msg =
-    | Inc
-    | Dec
-    | Reset
-    | IngredientAdd of (float32 * string)
     | Error of exn
     | RecipeSaved of Recipe array
     | SaveRecipe of Recipe
     | RecipesLoaded of Recipe array
+    | CreateRecipe
+    | CancelCreateRecipe
 
 let dojoApi =
     Remoting.createApi ()
     |> Remoting.withRouteBuilder Route.builder
     |> Remoting.buildProxy<IDojoApi>
 
-/// The init function is called to start the message pump with an initial view.
 let init () =
     {
         Count = 0
         Ingredients = List.empty
         Recipes = Array.empty
+        EditingStatus = NotEditing
     },
     Cmd.OfAsync.either dojoApi.GetRecipes () RecipesLoaded Error
     
-//let saveTheThing recipe = async {
-//    dojoApi.PostRecipe recipe
-//}
-
-/// The update function knows how to update the model given a message.
 let update msg model =
     match msg with
-    | Inc -> { model with Count = model.Count + 1 }, Cmd.none
-    | Dec -> { model with Count = model.Count - 1 }, Cmd.none
-    | IngredientAdd i -> { model with Ingredients = i :: model.Ingredients }, Cmd.none
-    | Reset -> init ()
     | Error _ -> model, Cmd.none
-    | RecipeSaved _ -> model, Cmd.none
+    | RecipeSaved r -> { model with EditingStatus = NotEditing; Recipes = r }, Cmd.none
     | SaveRecipe r -> model, Cmd.OfAsync.either dojoApi.PostRecipe r RecipeSaved Error
     | RecipesLoaded r -> { model with Recipes = r }, Cmd.none
+    | CreateRecipe -> { model with EditingStatus = New }, Cmd.none
+    | CancelCreateRecipe -> { model with EditingStatus = NotEditing }, Cmd.none
+
+// ***************
+// View
 
 let card (title:string) (content: ReactElement list) =
     Html.div [
@@ -75,8 +72,6 @@ let parseFloatDefaultZero s =
     match parseFloat s with
     | Some f -> f
     | None -> 0.0
-
-    //(JS.console.log recipe)
 
 [<ReactComponent>]
 let recipeBuilder(onSave) =
@@ -97,9 +92,15 @@ let recipeBuilder(onSave) =
         |> List.filter ( fun ( i ) -> i.Name <> name )
         |> setIngredients
 
-    let handleSubmit (e: Event) = do
-        e.preventDefault()
-        JS.console.log "Form submitted"
+    let reset() =
+        setIngredients(List.empty<Ingredient>)
+        setRecipeName("")
+        setQuantity(0.0)
+        setName("")
+
+    //let handleSubmit (e: Event) = do
+    //    e.preventDefault()
+    //    JS.console.log "Form submitted"
 
     // There's some READ BAD juju going on here:
     //let saveRecipe =
@@ -107,13 +108,16 @@ let recipeBuilder(onSave) =
     // onSave is called every time this re-renders
     // I wonder why? 🤔
 
+    let saveRecipe () =
+        reset()
+        onSave { Name = recipeName; Ingredients = ingredients }
+
     let ingredientToTableRow (ingredient: Ingredient) =
         Html.tr [
             Html.td [ prop.text ingredient.Amount ]
             Html.td [ prop.text ingredient.Name ]
             Html.td [
                 Html.button [
-                    //prop.text "Delete"
                     prop.type' "button"
                     prop.children [
                         Html.i [ prop.className "fas fa-trash" ]
@@ -141,6 +145,8 @@ let recipeBuilder(onSave) =
                 prop.type' "text"
                 prop.value recipeName
                 prop.onChange setRecipeName
+                prop.autoComplete "off"
+                prop.name "recipe-name"
             ]
         ]
 
@@ -194,7 +200,7 @@ let recipeBuilder(onSave) =
             Html.button [
                 prop.text "Save";
                 prop.style [ style.marginTop 20 ]
-                prop.onClick (fun _ -> onSave { Name = recipeName; Ingredients = ingredients })
+                prop.onClick (fun _ -> saveRecipe())
             ]
         ]
            // ]
@@ -206,16 +212,28 @@ let view (model: Model) dispatch =
     Html.div [
         prop.style [ style.backgroundColor "#eeeeee57"; style.minHeight (length.vh 100) ]
         prop.children [
-            card "Counter Test" [
-                Html.text ( sprintf "Counter: %i" model.Count )
+            card "Recipes" [
                 Html.div [
-                    Html.button [ prop.onClick (fun _ -> dispatch Inc); prop.text "Inc" ]
-                    Html.button [ prop.onClick (fun _ -> dispatch Dec); prop.text "Dec" ]
-                    Html.button [ prop.onClick (fun _ -> dispatch Reset); prop.text "Reset" ]
+                    Bulma.button.a [
+                        prop.text "Add new recipe"
+                        prop.onClick (fun _ -> (dispatch CreateRecipe))
+                    ]
                 ]
+                yield! Array.map (fun r -> Html.div [ Html.text r.Name ] ) model.Recipes
             ]
-            card "Add a recipe" [
-                recipeBuilder (SaveRecipe >> dispatch)
+            Bulma.modal [
+                prop.id "modal-sample"
+                if model.EditingStatus = New then Bulma.modal.isActive
+                prop.children [
+                    Bulma.modalBackground []
+                    Bulma.modalContent [
+                        Bulma.box [
+                            Html.h1 "Add a recipe"
+                            recipeBuilder (SaveRecipe >> dispatch)
+                        ]
+                    ]
+                    Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
+                ]
             ]
         ]
     ]
