@@ -162,11 +162,24 @@ let update msg model =
 // ***************
 // View
 
-let card (title: string) (content: ReactElement list) =
+let column (title: string) (content: ReactElement list) =
     Html.div [
-        prop.style [ style.width 600; style.paddingTop 20 ]
-        prop.children [ Bulma.box [ prop.children [ Bulma.subtitle title; yield! content ] ] ]
+        prop.style [
+            style.width 400
+            style.display.flex
+            style.flexDirection.column
+            style.overflow.hidden
+            style.padding (20, 20, 0, 20)
+            //style.borderRight (1, borderStyle.solid, color.lightGray)
+            style.backgroundColor color.white
+            style.boxShadow (4, 0, 4, color.lightGray)
+            style.marginRight 10
+        ]
+        prop.children [ Bulma.subtitle title; yield! content ]
     ]
+
+let icon iconName =
+    Html.i [ prop.className (sprintf "fas %s" iconName) ]
 
 let parseFloat s =
     try
@@ -283,9 +296,7 @@ let recipeBuilder model dispatch =
 let recipeRow dispatch recipe =
     Html.div [
         prop.style [
-            style.marginTop 8
-            style.border (1, borderStyle.solid, "#dbdbdb")
-            style.borderRadius 4
+            style.borderBottom (1, borderStyle.solid, "#dbdbdb")
             style.padding (7, 7, 7, 16)
             style.display.flex
             style.alignItems.center
@@ -362,7 +373,7 @@ let recipeList dispatch recipes (searchTerm: string) =
         let lowerCase = recipeName.ToLower()
         lowerCase.Contains(searchTerm.ToLower())
 
-    card "Recipes" [
+    column "Recipes" [
         Html.div [
             Bulma.button.a [
                 prop.children [
@@ -391,22 +402,37 @@ let recipeList dispatch recipes (searchTerm: string) =
                 ]
             ]
         ]
-        yield!
-            recipes
-            |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
-            |> Array.map (recipeRow dispatch)
+        Html.div [
+            prop.style [
+                style.overflow.scroll
+                style.border (1, borderStyle.solid, color.rgb (219, 219, 219))
+                style.flexGrow 1
+                style.marginTop 20
+                style.borderRadius 4
+            ]
+            prop.children [
+                yield!
+                    recipes
+                    |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
+                    |> Array.map (recipeRow dispatch)
+            ]
+        ]
+        Html.div [
+            prop.style [ style.textAlign.center; style.padding (10, 0) ]
+            prop.children[Bulma.button.button [ prop.children [ icon "fa-plus"; Html.text "Run Report" ] ]]
+        ]
     ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
     Html.div [
-        prop.style [ style.backgroundColor "#eeeeee57"; style.minHeight (length.vh 100) ]
+        prop.style []
         prop.children [
             Html.div [
-                prop.style [ style.display.flex ]
+                prop.style [ style.display.flex; style.height (length.vh 100) ]
                 prop.children [
                     recipeList dispatch model.Recipes model.RecipeSearchTerm
-                    card "Josh's Test" [ Html.text "Hello!" ]
+                    column "Josh's Test" [ Html.text "Report area" ]
                 ]
             ]
             editRecipeModal dispatch model
