@@ -5,6 +5,10 @@
 //      sort-thing
 //      (multiply-things 16))
 
+
+// This does the recursion to build up a list of all the ingredients needed,
+// and where in the process the recipe needs to be completed.
+
 // (defn get-thing
 //   "I'm not sure what to call this, actually"
 //   [ [ recipeName amount ] ]
@@ -16,6 +20,10 @@
 //               our-level (inc (first latest-level))]
 //        (conj expanded-list [our-level [recipeName amount]])))))
 
+
+
+// This builds the stages.
+
 // (defn compress-thing
 //   [thing]
 //   (reduce
@@ -26,6 +34,11 @@
 //    {}
 //    thing)
 // )
+
+
+
+// This groups together the same ingredients within each stage,
+// adding their quantities together, of course.
 
 // (defn group-thing
 //   [things]
@@ -40,9 +53,15 @@
 //       {}
 //       thing))))
 
+// Alphabetical sort with each stage.
+
 // (defn sort-thing
 //   [things]
 //   (into {} (map (fn [[level ingredients]] [level (into (sorted-map) ingredients)]) things)))
+
+
+// Can be used to adjust amounts afterwards, probably not needed in the way
+// this new app is set up.
 
 // (defn multiply-things
 //   [multiplier things]
