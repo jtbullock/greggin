@@ -13,6 +13,7 @@ type LeftColumnActivity =
     | ManageRecipes
     | RecipeBuilder
     | ConfirmDelete of string
+    | PrepReport
 
 type Model =
     {
@@ -63,6 +64,10 @@ type Msg =
     | SetSearchTerm of string
     | SelectRecipe of string
     | DeselectRecipe of string
+    | NavigateToReportPrep
+    | CancelReportPrep
+    | SetSelectionQuantity of (string * double)
+    | ResetRecipeSelection
 
 let dojoApi =
     Remoting.createApi ()
@@ -167,8 +172,37 @@ let update msg model =
         },
         Cmd.none
     | DeselectRecipe name ->
+        let updatedRecipeSelections =
+            List.filter (fun (r: Ingredient) -> r.Name <> name) model.SelectedRecipes
+
         { model with
-            SelectedRecipes = List.filter (fun r -> r.Name <> name) model.SelectedRecipes
+            SelectedRecipes = updatedRecipeSelections
+        },
+        if updatedRecipeSelections.Length > 0 then
+            Cmd.none
+        else
+            Cmd.ofMsg CancelReportPrep
+    | NavigateToReportPrep ->
+        { model with
+            LeftColumnActivity = PrepReport
+        },
+        Cmd.none
+    | CancelReportPrep ->
+        { model with
+            LeftColumnActivity = ManageRecipes
+        },
+        Cmd.none
+    | SetSelectionQuantity (name, amt) ->
+        { model with
+            SelectedRecipes =
+                List.map
+                    (fun (r: Ingredient) -> if r.Name = name then { r with Amount = amt } else r)
+                    model.SelectedRecipes
+        },
+        Cmd.none
+    | ResetRecipeSelection ->
+        { model with
+            SelectedRecipes = List.empty<Ingredient>
         },
         Cmd.none
 
@@ -363,6 +397,59 @@ let recipeRow dispatch (recipe: (bool * Recipe)) =
         ]
     ]
 
+let reportIngredientRow dispatch (ingredient: Ingredient) =
+
+    let onAmountChange (amt: string) =
+        let parsedAmount = parseFloatDefaultZero amt
+        SetSelectionQuantity(ingredient.Name, parsedAmount) |> dispatch
+
+    Html.div [
+        prop.style [
+            style.borderBottom (1, borderStyle.solid, "#dbdbdb")
+            style.padding (7, 7, 7, 16)
+            style.display.flex
+            style.alignItems.center
+        ]
+        prop.children [
+            // Recipe name and amount
+            Bulma.input.number [
+                prop.style [ style.width 80; style.marginRight 10 ]
+                prop.value ingredient.Amount
+                prop.onChange onAmountChange
+            ]
+
+            Html.div [ prop.style [ style.flexGrow 1 ]; prop.children [ Html.text ingredient.Name ] ]
+
+            // Recipe actions
+            Bulma.button.a [
+                Bulma.button.isInverted
+                Bulma.color.isInfo
+                prop.onClick (fun _ -> ingredient.Name |> DeselectRecipe |> dispatch)
+                prop.children [ Html.i [ prop.className "fas fa-trash" ] ]
+            ]
+        ]
+    ]
+
+let reportSetup dispatch (recipes: Ingredient list) =
+    React.fragment [
+        Bulma.subtitle "Configure Report"
+        iconButton "fa-caret-left" "Return to Recipes" (fun _ -> (dispatch CancelReportPrep))
+
+        Html.div [
+            prop.style [
+                style.overflow.scroll
+                style.border (1, borderStyle.solid, color.rgb (219, 219, 219))
+                style.flexGrow 1
+                style.margin (20, 0)
+                style.borderRadius 4
+            ]
+            prop.children (List.map (fun r -> reportIngredientRow dispatch r) recipes)
+        ]
+
+        iconButton "fa-play" "Run Report" (fun _ -> (dispatch CancelReportPrep))
+
+    ]
+
 let recipeList dispatch (recipes: (bool * Recipe) array) (searchTerm: string) =
 
     let applySearchTermToRecipe (recipeName: string) =
@@ -429,10 +516,14 @@ let manageRecipes dispatch model =
 
         recipeList dispatch recipesWithSelection model.RecipeSearchTerm
 
-        Html.div [
-            prop.style [ style.textAlign.center; style.padding (10, 0) ]
-            prop.children[iconButton "fa-plus" "Run Report" (fun _ -> (dispatch CreateRecipe))]
-        ]
+        if model.SelectedRecipes.Length > 0 then
+            Html.div [
+                prop.style [ style.textAlign.center; style.padding (10, 0) ]
+                prop.children[iconButton "fa-times" "Reset Selection" (fun _ -> (dispatch ResetRecipeSelection))
+                              iconButton "fa-play" "Run Report" (fun _ -> (dispatch NavigateToReportPrep))]
+            ]
+        else
+            Html.none
     ]
 
 let deleteConfirmation dispatch (recipeName: string) =
@@ -470,6 +561,7 @@ let view (model: Model) dispatch =
                 | ManageRecipes -> manageRecipes dispatch model
                 | RecipeBuilder -> recipeBuilder dispatch model
                 | ConfirmDelete recipeName -> deleteConfirmation dispatch recipeName
+                | PrepReport -> reportSetup dispatch model.SelectedRecipes
             ]
         //column "Josh's Test" [ Html.text "Report area" ]
         ]
