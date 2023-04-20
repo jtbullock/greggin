@@ -56,7 +56,7 @@ let getWeather postcode = async {
        asWeatherResponse functions to create and return a WeatherResponse instead of the stub.
        Don't forget to use let! instead of let to "await" the Task. *)
     if not (Validation.isValidPostcode postcode) then
-       failwith "Invalid postcode"
+        failwith "Invalid postcode"
 
     let! location = getLocation postcode
     let! weatherInfo = Weather.getWeatherForPosition location.LatLong
@@ -64,52 +64,59 @@ let getWeather postcode = async {
     return asWeatherResponse weatherInfo
 }
 
-let toMemoryStream (bytes: byte array) = new MemoryStream( bytes )
+let toMemoryStream (bytes: byte array) = new MemoryStream(bytes)
 
 let private getRecipesDict (blobConnString) = async {
     //let storageConnString = "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
-    
+
     let container = BlobContainerClient(blobConnString, "recipes")
     let blockBlob = container.GetBlobClient "recipes.json"
 
     // Fancier way to do this: https://www.planetgeek.ch/2021/04/22/our-journey-to-f-making-async-understand-tasks/
-    let! downloadResult = blockBlob.DownloadAsync () |> Async.AwaitTask
+    let! downloadResult = blockBlob.DownloadAsync() |> Async.AwaitTask
 
     return JsonSerializer.Deserialize<Map<string, Ingredient list>> downloadResult.Value.Content
 }
 
-let recipeMapToResponseArray(recipes: Map<string, Ingredient list>) =
-    recipes |> Map.toArray |> Array.map (fun r -> { Name = (fst r); Ingredients = (snd r) } )
+let recipeMapToResponseArray (recipes: Map<string, Ingredient list>) =
+    recipes
+    |> Map.toArray
+    |> Array.map (fun r -> {
+        Name = (fst r)
+        Ingredients = (snd r)
+    })
 
 let getRecipes (blobConnString) = async {
     let! recipes = getRecipesDict blobConnString
     return recipeMapToResponseArray recipes
+//return Array.empty<Recipe list>
 }
 
-let postRecipe (recipe:Recipe) = async {
-    let storageConnString = "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
-    
+let postRecipe (recipe: Recipe) = async {
+    let storageConnString =
+        "DefaultEndpointsProtocol=https;AccountName=gregginblob;AccountKey=nDHyJevQqHJADdOv9THZsEoYtaXfqS4zEhOXFaEhNsq8AotboemQmD+aDxKnfOStC+FqZj9vepUN+AStGecfwg==;EndpointSuffix=core.windows.net"
+
     let container = BlobContainerClient(storageConnString, "recipes")
     let blockBlob = container.GetBlobClient "recipes.json"
 
-    let! recipes = getRecipesDict(storageConnString)
+    let! recipes = getRecipesDict (storageConnString)
     let withRecipe = Map.add recipe.Name recipe.Ingredients recipes
     let serialized = JsonSerializer.Serialize withRecipe
     let bytes = System.Text.Encoding.UTF8.GetBytes serialized
     let memoryStream = toMemoryStream bytes
-    blockBlob.Upload (memoryStream, true)
+    blockBlob.Upload(memoryStream, true)
 
     return recipeMapToResponseArray withRecipe
 }
 
-let dojoApi (config:IConfiguration) = {
+let dojoApi (config: IConfiguration) = {
     GetDistance = getDistanceFromLondon
 
     (* Task 1.1 CRIME: Bind the getCrimeReport function to the GetCrimes method to
          return crime data. Use the above GetDistance field as an example. *)
     GetCrimes = getCrimeReport
 
-(* Task 4.2 WEATHER: Hook up the weather endpoint to the getWeather function. *)
+    (* Task 4.2 WEATHER: Hook up the weather endpoint to the getWeather function. *)
     GetWeather = getWeather
 
     PostRecipe = postRecipe
