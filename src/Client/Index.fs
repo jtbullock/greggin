@@ -24,6 +24,7 @@ type Model =
         Recipes: Recipe array
         RecipeSearchTerm: string
         LeftColumnActivity: LeftColumnActivity
+        SelectedRecipes: Ingredient list
     }
 
     static member Init = {
@@ -35,6 +36,7 @@ type Model =
         Recipes = Array.empty
         RecipeSearchTerm = ""
         LeftColumnActivity = ManageRecipes
+        SelectedRecipes = List.empty<Ingredient>
     }
 
 // ***************
@@ -59,6 +61,8 @@ type Msg =
     | ConfirmDeleteRecipe of string
     | CancelDelete
     | SetSearchTerm of string
+    | SelectRecipe of string
+    | DeselectRecipe of string
 
 let dojoApi =
     Remoting.createApi ()
@@ -157,6 +161,16 @@ let update msg model =
         },
         Cmd.none
     | SetSearchTerm s -> { model with RecipeSearchTerm = s }, Cmd.none
+    | SelectRecipe name ->
+        { model with
+            SelectedRecipes = { Amount = 1.0; Name = name } :: model.SelectedRecipes
+        },
+        Cmd.none
+    | DeselectRecipe name ->
+        { model with
+            SelectedRecipes = List.filter (fun r -> r.Name <> name) model.SelectedRecipes
+        },
+        Cmd.none
 
 // ***************
 // View
@@ -302,7 +316,15 @@ let recipeBuilder dispatch model =
     //  ]
     ]
 
-let recipeRow dispatch recipe =
+let recipeRow dispatch (recipe: (bool * Recipe)) =
+
+    let (isChecked, recipe) = recipe
+
+    let handleCheckboxChange isChecked =
+        recipe.Name
+        |> if isChecked = true then SelectRecipe else DeselectRecipe
+        |> dispatch
+
     Html.div [
         prop.style [
             style.borderBottom (1, borderStyle.solid, "#dbdbdb")
@@ -311,7 +333,21 @@ let recipeRow dispatch recipe =
             style.alignItems.center
         ]
         prop.children [
-            Html.div [ prop.style [ style.flexGrow 1 ]; prop.children [ Html.text recipe.Name ] ]
+            // Recipe name and checkbox
+            Html.label [
+                prop.style [ style.flexGrow 1; style.cursor.pointer ]
+                prop.children [
+                    Bulma.input.checkbox [
+                        prop.isChecked isChecked
+                        prop.value "remember"
+                        prop.style [ style.marginRight 10 ]
+                        prop.onChange handleCheckboxChange
+                    ]
+                    Bulma.text.span recipe.Name
+                ]
+            ]
+
+            // Recipe actions
             Bulma.button.a [
                 Bulma.button.isInverted
                 Bulma.color.isInfo
@@ -327,7 +363,7 @@ let recipeRow dispatch recipe =
         ]
     ]
 
-let recipeList dispatch recipes (searchTerm: string) =
+let recipeList dispatch (recipes: (bool * Recipe) array) (searchTerm: string) =
 
     let applySearchTermToRecipe (recipeName: string) =
         let lowerCase = recipeName.ToLower()
@@ -343,7 +379,7 @@ let recipeList dispatch recipes (searchTerm: string) =
         ]
         prop.children (
             recipes
-            |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
+            |> Array.filter (fun r -> applySearchTermToRecipe (snd r).Name)
             |> Array.map (recipeRow dispatch)
         )
     ]
@@ -375,12 +411,23 @@ let recipeSearchBox dispatch (searchTerm: string) =
     ]
 
 let manageRecipes dispatch model =
+    let isRecipeSelected (recipe: Recipe) =
+        let lookup =
+            List.tryFind (fun (selectedItem: Ingredient) -> selectedItem.Name = recipe.Name) model.SelectedRecipes
+
+        match lookup with
+        | Some _ -> true
+        | _ -> false
+
+    let recipesWithSelection =
+        Array.map (fun r -> ((isRecipeSelected r), r)) model.Recipes
+
     React.fragment [
         iconButton "fa-plus" "Add New Recipe" (fun _ -> (dispatch CreateRecipe))
 
         recipeSearchBox dispatch model.RecipeSearchTerm
 
-        recipeList dispatch model.Recipes model.RecipeSearchTerm
+        recipeList dispatch recipesWithSelection model.RecipeSearchTerm
 
         Html.div [
             prop.style [ style.textAlign.center; style.padding (10, 0) ]
