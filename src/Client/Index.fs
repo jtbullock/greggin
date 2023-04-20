@@ -9,13 +9,10 @@ open Shared
 // *************
 // Model
 
-type ModalStatus =
-    | Open
-    | Closed
-
-type DeleteModalStatus =
-    | Confirm of string
-    | Closed
+type LeftColumnActivity =
+    | ManageRecipes
+    | RecipeForm
+    | ConfirmDelete of string
 
 type Model =
     {
@@ -25,9 +22,8 @@ type Model =
         RecipeForm_NewIngredientName: string
 
         Recipes: Recipe array
-        EditingModalStatus: ModalStatus
-        DeleteConfirmModalStatus: DeleteModalStatus
         RecipeSearchTerm: string
+        LeftColumnActivity: LeftColumnActivity
     }
 
     static member Init = {
@@ -37,9 +33,8 @@ type Model =
         RecipeForm_NewIngredientName = ""
 
         Recipes = Array.empty
-        EditingModalStatus = ModalStatus.Closed
-        DeleteConfirmModalStatus = Closed
         RecipeSearchTerm = ""
+        LeftColumnActivity = ManageRecipes
     }
 
 // ***************
@@ -83,16 +78,20 @@ let update msg model =
     | Error _ -> model, Cmd.none
     | RecipeSaved r ->
         { model with
-            EditingModalStatus = ModalStatus.Closed
+            LeftColumnActivity = ManageRecipes
             Recipes = r
         },
         Cmd.ofMsg RecipeForm_Reset
     | SaveRecipe -> model, Cmd.OfAsync.either dojoApi.PostRecipe (getRecipeFormRecipe model) RecipeSaved Error
     | RecipesLoaded r -> { model with Recipes = r }, Cmd.none
-    | CreateRecipe -> { model with EditingModalStatus = Open }, Cmd.none
+    | CreateRecipe ->
+        { model with
+            LeftColumnActivity = RecipeForm
+        },
+        Cmd.none
     | CancelCreateRecipe ->
         { model with
-            EditingModalStatus = ModalStatus.Closed
+            LeftColumnActivity = ManageRecipes
         },
         Cmd.ofMsg RecipeForm_Reset
     | RecipeForm_SaveIngredient ->
@@ -135,7 +134,7 @@ let update msg model =
         Cmd.none
     | EditRecipe recipe ->
         { model with
-            EditingModalStatus = Open
+            LeftColumnActivity = RecipeForm
             RecipeForm_Name = recipe.Name
             RecipeForm_Ingredients = recipe.Ingredients
         },
@@ -144,17 +143,17 @@ let update msg model =
     | RecipeDeleted recipes ->
         { model with
             Recipes = recipes
-            DeleteConfirmModalStatus = Closed
+            LeftColumnActivity = ManageRecipes
         },
         Cmd.none
     | ConfirmDeleteRecipe recipe ->
         { model with
-            DeleteConfirmModalStatus = Confirm recipe
+            LeftColumnActivity = ConfirmDelete recipe
         },
         Cmd.none
     | CancelDelete ->
         { model with
-            DeleteConfirmModalStatus = Closed
+            LeftColumnActivity = ManageRecipes
         },
         Cmd.none
     | SetSearchTerm s -> { model with RecipeSearchTerm = s }, Cmd.none
@@ -162,7 +161,7 @@ let update msg model =
 // ***************
 // View
 
-let column (title: string) (content: ReactElement list) =
+let column (content: ReactElement list) =
     Html.div [
         prop.style [
             style.width 400
@@ -170,23 +169,23 @@ let column (title: string) (content: ReactElement list) =
             style.flexDirection.column
             style.overflow.hidden
             style.padding (20, 20, 0, 20)
-            //style.borderRight (1, borderStyle.solid, color.lightGray)
             style.backgroundColor color.white
             style.boxShadow (4, 0, 4, color.lightGray)
             style.marginRight 10
         ]
-        prop.children [ Bulma.subtitle title; yield! content ]
+        prop.children content
     ]
 
 let icon iconName =
     Html.i [ prop.className (sprintf "fas %s" iconName) ]
 
-let iconButton iconName text =
+let iconButton iconName (text: string) onClick =
     Bulma.button.button [
         prop.children [
             Html.i [ prop.style[style.marginRight 10]; prop.className (sprintf "fas %s" iconName) ]
-            Html.text "Run Report"
+            Html.text text
         ]
+        prop.onClick onClick
     ]
 
 let parseFloat s =
@@ -200,7 +199,7 @@ let parseFloatDefaultZero s =
     | Some f -> f
     | None -> 0.0
 
-let recipeBuilder model dispatch =
+let recipeBuilder dispatch model =
     //let handleSubmit (e: Event) = do
     //    e.preventDefault()
     //    JS.console.log "Form submitted"
@@ -228,6 +227,8 @@ let recipeBuilder model dispatch =
         //Html.form [
         //  prop.onSubmit handleSubmit
         //prop.children [
+        Bulma.subtitle "Recipe"
+
         Html.label [
             Html.text "Name "
             Html.input [
@@ -326,54 +327,17 @@ let recipeRow dispatch recipe =
         ]
     ]
 
-let deleteConfirmModal dispatch (modalStatus: DeleteModalStatus) =
-    match modalStatus with
-    | Closed -> Html.text "" // How to return nothing?
-    | Confirm recipeName ->
-        Bulma.modal [
-            Bulma.modal.isActive
-            prop.children [
-                Bulma.modalBackground []
-                Bulma.modalContent [
-                    Bulma.box [
-                        Bulma.subtitle "Delete Confirmation"
-                        Html.text "Are you sure you want to delete recipe '"
-                        Html.strong recipeName
-                        Html.text "'?"
-
-                        Html.div [
-                            prop.style [ style.marginTop 20 ]
-                            prop.children [
-                                Bulma.button.button [
-                                    prop.text "Delete"
-                                    Bulma.color.isDanger
-                                    prop.onClick (fun _ -> recipeName |> DeleteRecipe |> dispatch)
-                                ]
-                                Bulma.button.button [
-                                    prop.text "Cancel"
-                                    Bulma.button.isInverted
-                                    Bulma.color.isInfo
-                                    prop.onClick (fun _ -> dispatch CancelDelete)
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-                Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelDelete)) ]
-            ]
-        ]
-
-let editRecipeModal dispatch model =
-    Bulma.modal [
-        prop.id "edit-modal"
-        if model.EditingModalStatus = Open then
-            Bulma.modal.isActive
-        prop.children [
-            Bulma.modalBackground []
-            Bulma.modalContent [ Bulma.box [ Bulma.subtitle "Add a recipe"; recipeBuilder model dispatch ] ]
-            Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
-        ]
-    ]
+// let editRecipeModal dispatch model =
+//     Bulma.modal [
+//         prop.id "edit-modal"
+//         if model.EditingModalStatus = Open then
+//             Bulma.modal.isActive
+//         prop.children [
+//             Bulma.modalBackground []
+//             Bulma.modalContent [ Bulma.box [ Bulma.subtitle "Add a recipe"; recipeBuilder model dispatch ] ]
+//             Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
+//         ]
+//     ]
 
 let recipeList dispatch recipes (searchTerm: string) =
 
@@ -381,69 +345,100 @@ let recipeList dispatch recipes (searchTerm: string) =
         let lowerCase = recipeName.ToLower()
         lowerCase.Contains(searchTerm.ToLower())
 
-    column "Recipes" [
-        Html.div [
-            Bulma.button.a [
-                prop.children [
-                    Html.i [ prop.className "fas fa-plus"; prop.style [ style.marginRight 5 ] ]
-                    Html.text "Add New Recipe"
-                ]
+    Html.div [
+        prop.style [
+            style.overflow.scroll
+            style.border (1, borderStyle.solid, color.rgb (219, 219, 219))
+            style.flexGrow 1
+            style.marginTop 20
+            style.borderRadius 4
+        ]
+        prop.children [
+            yield!
+                recipes
+                |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
+                |> Array.map (recipeRow dispatch)
+        ]
+    ]
 
-                prop.onClick (fun _ -> (dispatch CreateRecipe))
+let pageContainer (content: ReactElement list) =
+    Html.div [
+        prop.style [ style.display.flex; style.height (length.vh 100) ]
+        prop.children content
+    ]
+
+let recipeSearchBox dispatch (searchTerm: string) =
+    Html.div [
+        prop.style [ style.display.flex; style.marginTop 20 ]
+
+        prop.children [
+            Bulma.input.text [
+                prop.style [ style.flexGrow 1 ]
+                prop.placeholder "search"
+                prop.value searchTerm
+                prop.onChange (fun t -> t |> SetSearchTerm |> dispatch)
             ]
-            Html.div [
-                prop.style [ style.display.flex; style.marginTop 20 ]
-
-                prop.children [
-                    Bulma.input.text [
-                        prop.style [ style.flexGrow 1 ]
-                        prop.placeholder "search"
-                        prop.value searchTerm
-                        prop.onChange (fun t -> t |> SetSearchTerm |> dispatch)
-                    ]
-                    Bulma.button.button [
-                        Bulma.button.isInverted
-                        Bulma.color.isInfo
-                        prop.children [ Html.i [ prop.className "fas fa-times" ] ]
-                        prop.onClick (fun _ -> dispatch (SetSearchTerm ""))
-                    ]
-                ]
+            Bulma.button.button [
+                Bulma.button.isInverted
+                Bulma.color.isInfo
+                prop.children [ Html.i [ prop.className "fas fa-times" ] ]
+                prop.onClick (fun _ -> dispatch (SetSearchTerm ""))
             ]
         ]
-        Html.div [
-            prop.style [
-                style.overflow.scroll
-                style.border (1, borderStyle.solid, color.rgb (219, 219, 219))
-                style.flexGrow 1
-                style.marginTop 20
-                style.borderRadius 4
-            ]
-            prop.children [
-                yield!
-                    recipes
-                    |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
-                    |> Array.map (recipeRow dispatch)
-            ]
-        ]
+    ]
+
+let manageRecipes dispatch model =
+    React.fragment [
+        iconButton "fa-plus" "Add New Recipe" (fun _ -> (dispatch CreateRecipe))
+
+        recipeSearchBox dispatch model.RecipeSearchTerm
+
+        recipeList dispatch model.Recipes model.RecipeSearchTerm
+
         Html.div [
             prop.style [ style.textAlign.center; style.padding (10, 0) ]
-            prop.children[iconButton "fa-plus" "Run Report"]
+            prop.children[iconButton "fa-plus" "Run Report" (fun _ -> (dispatch CreateRecipe))]
+        ]
+    ]
+
+let deleteConfirmation dispatch (recipeName: string) =
+    Html.div [
+        Bulma.subtitle "Delete Confirmation"
+        Html.text "Are you sure you want to delete recipe '"
+        Html.strong recipeName
+        Html.text "'?"
+
+        Html.div [
+            prop.style [ style.marginTop 20 ]
+            prop.children [
+                Bulma.button.button [
+                    prop.text "Delete"
+                    Bulma.color.isDanger
+                    prop.onClick (fun _ -> recipeName |> DeleteRecipe |> dispatch)
+                ]
+                Bulma.button.button [
+                    prop.text "Cancel"
+                    Bulma.button.isInverted
+                    Bulma.color.isInfo
+                    prop.onClick (fun _ -> dispatch CancelDelete)
+                ]
+            ]
         ]
     ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
-    Html.div [
-        prop.style []
-        prop.children [
-            Html.div [
-                prop.style [ style.display.flex; style.height (length.vh 100) ]
-                prop.children [
-                    recipeList dispatch model.Recipes model.RecipeSearchTerm
-                    column "Josh's Test" [ Html.text "Report area" ]
-                ]
+    React.fragment [
+        pageContainer [
+            column [
+                match model.LeftColumnActivity with
+                | ManageRecipes -> manageRecipes dispatch model
+                | RecipeForm -> recipeBuilder dispatch model
+                | ConfirmDelete recipeName -> deleteConfirmation dispatch recipeName
             ]
-            editRecipeModal dispatch model
-            deleteConfirmModal dispatch model.DeleteConfirmModalStatus
+        //column "Josh's Test" [ Html.text "Report area" ]
         ]
+
+    // editRecipeModal dispatch model
+    //deleteConfirmModal dispatch model.DeleteConfirmModalStatus
     ]
