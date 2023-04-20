@@ -9,9 +9,13 @@ open Shared
 // *************
 // Model
 
-type EditingStatus =
-    | NotEditing
-    | Editing
+type ModalStatus =
+    | Open
+    | Closed
+
+type DeleteModalStatus =
+    | Confirm of string
+    | Closed
 
 type Model =
     {
@@ -21,7 +25,8 @@ type Model =
         RecipeForm_NewIngredientName: string
 
         Recipes: Recipe array
-        EditingStatus: EditingStatus
+        EditingModalStatus: ModalStatus
+        DeleteConfirmModalStatus: DeleteModalStatus
     }
 
     static member Init = {
@@ -31,7 +36,8 @@ type Model =
         RecipeForm_NewIngredientName = ""
 
         Recipes = Array.empty
-        EditingStatus = NotEditing
+        EditingModalStatus = ModalStatus.Closed
+        DeleteConfirmModalStatus = Closed
     }
 
 // ***************
@@ -51,6 +57,10 @@ type Msg =
     | RecipeForm_SetQuantity of double
     | RecipeForm_SetIngredientName of string
     | EditRecipe of Recipe
+    | DeleteRecipe of string
+    | RecipeDeleted of Recipe array
+    | ConfirmDeleteRecipe of string
+    | CancelDelete
 
 let dojoApi =
     Remoting.createApi ()
@@ -70,16 +80,16 @@ let update msg model =
     | Error _ -> model, Cmd.none
     | RecipeSaved r ->
         { model with
-            EditingStatus = NotEditing
+            EditingModalStatus = ModalStatus.Closed
             Recipes = r
         },
         Cmd.ofMsg RecipeForm_Reset
     | SaveRecipe -> model, Cmd.OfAsync.either dojoApi.PostRecipe (getRecipeFormRecipe model) RecipeSaved Error
     | RecipesLoaded r -> { model with Recipes = r }, Cmd.none
-    | CreateRecipe -> { model with EditingStatus = Editing }, Cmd.none
+    | CreateRecipe -> { model with EditingModalStatus = Open }, Cmd.none
     | CancelCreateRecipe ->
         { model with
-            EditingStatus = NotEditing
+            EditingModalStatus = ModalStatus.Closed
         },
         Cmd.ofMsg RecipeForm_Reset
     | RecipeForm_SaveIngredient ->
@@ -122,9 +132,26 @@ let update msg model =
         Cmd.none
     | EditRecipe recipe ->
         { model with
-            EditingStatus = Editing
+            EditingModalStatus = Open
             RecipeForm_Name = recipe.Name
             RecipeForm_Ingredients = recipe.Ingredients
+        },
+        Cmd.none
+    | DeleteRecipe recipeName -> model, Cmd.OfAsync.either dojoApi.DeleteRecipe recipeName RecipeDeleted Error
+    | RecipeDeleted recipes ->
+        { model with
+            Recipes = recipes
+            DeleteConfirmModalStatus = Closed
+        },
+        Cmd.none
+    | ConfirmDeleteRecipe recipe ->
+        { model with
+            DeleteConfirmModalStatus = Confirm recipe
+        },
+        Cmd.none
+    | CancelDelete ->
+        { model with
+            DeleteConfirmModalStatus = Closed
         },
         Cmd.none
 
@@ -247,7 +274,7 @@ let recipeRow dispatch recipe =
             style.marginTop 8
             style.border (1, borderStyle.solid, "#dbdbdb")
             style.borderRadius 4
-            style.padding (7, 16)
+            style.padding (7, 7, 7, 16)
             style.display.flex
             style.alignItems.center
         ]
@@ -259,8 +286,52 @@ let recipeRow dispatch recipe =
                 prop.onClick (fun _ -> recipe |> EditRecipe |> dispatch)
                 prop.children [ Html.i [ prop.className "fas fa-edit" ] ]
             ]
+            Bulma.button.a [
+                Bulma.button.isInverted
+                Bulma.color.isInfo
+                prop.onClick (fun _ -> recipe.Name |> ConfirmDeleteRecipe |> dispatch)
+                prop.children [ Html.i [ prop.className "fas fa-trash" ] ]
+            ]
         ]
     ]
+
+let deleteConfirmModal dispatch (modalStatus: DeleteModalStatus) =
+    match modalStatus with
+    | Closed -> Html.text "" // How to return nothing?
+    | Confirm recipeName ->
+        Bulma.modal [
+            Bulma.modal.isActive
+            prop.children [
+                Bulma.modalBackground []
+                Bulma.modalContent [
+                    Bulma.box [
+                        Html.h1 "Delete Confirmation"
+                        Html.text "Are you sure you want to delete recipe "
+                        Html.strong recipeName
+                        Html.text "?"
+
+                        Html.div [
+                            prop.style [ style.marginTop 20 ]
+                            prop.children [
+                                Bulma.button.button [
+                                    prop.text "Delete"
+                                    Bulma.color.isDanger
+                                    prop.onClick (fun _ -> recipeName |> DeleteRecipe |> dispatch)
+                                ]
+                                Bulma.button.button [
+                                    prop.text "Cancel"
+                                    Bulma.button.isInverted
+                                    Bulma.color.isInfo
+                                    prop.onClick (fun _ -> dispatch CancelDelete)
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+                Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelDelete)) ]
+            ]
+        ]
+
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
@@ -288,8 +359,8 @@ let view (model: Model) dispatch =
                 ]
             ]
             Bulma.modal [
-                prop.id "modal-sample"
-                if model.EditingStatus = Editing then
+                prop.id "edit-modal"
+                if model.EditingModalStatus = Open then
                     Bulma.modal.isActive
                 prop.children [
                     Bulma.modalBackground []
@@ -297,5 +368,6 @@ let view (model: Model) dispatch =
                     Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
                 ]
             ]
+            deleteConfirmModal dispatch model.DeleteConfirmModalStatus
         ]
     ]

@@ -109,6 +109,21 @@ let postRecipe (recipe: Recipe) = async {
     return recipeMapToResponseArray withRecipe
 }
 
+let deleteRecipe (blobConnString: string) (recipeName: string) : Recipe array Async = async {
+    let! recipes = getRecipesDict (blobConnString)
+    let removed = Map.remove recipeName recipes
+
+    let container = BlobContainerClient(blobConnString, "recipes")
+    let blockBlob = container.GetBlobClient "recipes.json"
+
+    let serialized = JsonSerializer.Serialize removed
+    let bytes = System.Text.Encoding.UTF8.GetBytes serialized
+    let memoryStream = toMemoryStream bytes
+    blockBlob.Upload(memoryStream, true)
+
+    return recipeMapToResponseArray removed
+}
+
 let dojoApi (config: IConfiguration) = {
     GetDistance = getDistanceFromLondon
 
@@ -121,5 +136,7 @@ let dojoApi (config: IConfiguration) = {
 
     PostRecipe = postRecipe
 
-    GetRecipes = (fun _ -> getRecipes (config.["ConnectionStrings:BlobStorage"]))
+    GetRecipes = (fun _ -> getRecipes config.["ConnectionStrings:BlobStorage"])
+
+    DeleteRecipe = deleteRecipe config.["ConnectionStrings:BlobStorage"]
 }
