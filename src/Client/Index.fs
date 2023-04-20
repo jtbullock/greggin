@@ -11,7 +11,7 @@ open Shared
 
 type LeftColumnActivity =
     | ManageRecipes
-    | RecipeForm
+    | RecipeBuilder
     | ConfirmDelete of string
 
 type Model =
@@ -86,7 +86,7 @@ let update msg model =
     | RecipesLoaded r -> { model with Recipes = r }, Cmd.none
     | CreateRecipe ->
         { model with
-            LeftColumnActivity = RecipeForm
+            LeftColumnActivity = RecipeBuilder
         },
         Cmd.none
     | CancelCreateRecipe ->
@@ -134,7 +134,7 @@ let update msg model =
         Cmd.none
     | EditRecipe recipe ->
         { model with
-            LeftColumnActivity = RecipeForm
+            LeftColumnActivity = RecipeBuilder
             RecipeForm_Name = recipe.Name
             RecipeForm_Ingredients = recipe.Ingredients
         },
@@ -327,18 +327,6 @@ let recipeRow dispatch recipe =
         ]
     ]
 
-// let editRecipeModal dispatch model =
-//     Bulma.modal [
-//         prop.id "edit-modal"
-//         if model.EditingModalStatus = Open then
-//             Bulma.modal.isActive
-//         prop.children [
-//             Bulma.modalBackground []
-//             Bulma.modalContent [ Bulma.box [ Bulma.subtitle "Add a recipe"; recipeBuilder model dispatch ] ]
-//             Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
-//         ]
-//     ]
-
 let recipeList dispatch recipes (searchTerm: string) =
 
     let applySearchTermToRecipe (recipeName: string) =
@@ -353,12 +341,11 @@ let recipeList dispatch recipes (searchTerm: string) =
             style.marginTop 20
             style.borderRadius 4
         ]
-        prop.children [
-            yield!
-                recipes
-                |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
-                |> Array.map (recipeRow dispatch)
-        ]
+        prop.children (
+            recipes
+            |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
+            |> Array.map (recipeRow dispatch)
+        )
     ]
 
 let pageContainer (content: ReactElement list) =
@@ -404,6 +391,7 @@ let manageRecipes dispatch model =
 let deleteConfirmation dispatch (recipeName: string) =
     Html.div [
         Bulma.subtitle "Delete Confirmation"
+
         Html.text "Are you sure you want to delete recipe '"
         Html.strong recipeName
         Html.text "'?"
@@ -433,12 +421,9 @@ let view (model: Model) dispatch =
             column [
                 match model.LeftColumnActivity with
                 | ManageRecipes -> manageRecipes dispatch model
-                | RecipeForm -> recipeBuilder dispatch model
+                | RecipeBuilder -> recipeBuilder dispatch model
                 | ConfirmDelete recipeName -> deleteConfirmation dispatch recipeName
             ]
         //column "Josh's Test" [ Html.text "Report area" ]
         ]
-
-    // editRecipeModal dispatch model
-    //deleteConfirmModal dispatch model.DeleteConfirmModalStatus
     ]
