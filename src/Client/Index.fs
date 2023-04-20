@@ -27,6 +27,7 @@ type Model =
         Recipes: Recipe array
         EditingModalStatus: ModalStatus
         DeleteConfirmModalStatus: DeleteModalStatus
+        RecipeSearchTerm: string
     }
 
     static member Init = {
@@ -38,6 +39,7 @@ type Model =
         Recipes = Array.empty
         EditingModalStatus = ModalStatus.Closed
         DeleteConfirmModalStatus = Closed
+        RecipeSearchTerm = ""
     }
 
 // ***************
@@ -61,6 +63,7 @@ type Msg =
     | RecipeDeleted of Recipe array
     | ConfirmDeleteRecipe of string
     | CancelDelete
+    | SetSearchTerm of string
 
 let dojoApi =
     Remoting.createApi ()
@@ -154,6 +157,7 @@ let update msg model =
             DeleteConfirmModalStatus = Closed
         },
         Cmd.none
+    | SetSearchTerm s -> { model with RecipeSearchTerm = s }, Cmd.none
 
 // ***************
 // View
@@ -332,6 +336,58 @@ let deleteConfirmModal dispatch (modalStatus: DeleteModalStatus) =
             ]
         ]
 
+let editRecipeModal dispatch model =
+    Bulma.modal [
+        prop.id "edit-modal"
+        if model.EditingModalStatus = Open then
+            Bulma.modal.isActive
+        prop.children [
+            Bulma.modalBackground []
+            Bulma.modalContent [ Bulma.box [ Html.h1 "Add a recipe"; recipeBuilder model dispatch ] ]
+            Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
+        ]
+    ]
+
+let recipeList dispatch recipes (searchTerm: string) =
+
+    let applySearchTermToRecipe (recipeName: string) =
+        let lowerCase = recipeName.ToLower()
+        lowerCase.Contains(searchTerm.ToLower())
+
+    card "Recipes" [
+        Html.div [
+            Bulma.button.a [
+                prop.children [
+                    Html.i [ prop.className "fas fa-plus"; prop.style [ style.marginRight 5 ] ]
+                    Html.text "Add New Recipe"
+                ]
+
+                prop.onClick (fun _ -> (dispatch CreateRecipe))
+            ]
+            Html.div [
+                prop.style [ style.display.flex; style.marginTop 20 ]
+
+                prop.children [
+                    Bulma.input.text [
+                        prop.style [ style.flexGrow 1 ]
+                        prop.placeholder "search"
+                        prop.value searchTerm
+                        prop.onChange (fun t -> t |> SetSearchTerm |> dispatch)
+                    ]
+                    Bulma.button.button [
+                        Bulma.button.isInverted
+                        Bulma.color.isInfo
+                        prop.children [ Html.i [ prop.className "fas fa-times" ] ]
+                        prop.onClick (fun _ -> dispatch (SetSearchTerm ""))
+                    ]
+                ]
+            ]
+        ]
+        yield!
+            recipes
+            |> Array.filter (fun r -> applySearchTermToRecipe r.Name)
+            |> Array.map (recipeRow dispatch)
+    ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
@@ -341,33 +397,11 @@ let view (model: Model) dispatch =
             Html.div [
                 prop.style [ style.display.flex ]
                 prop.children [
-                    card "Recipes" [
-                        Html.div [
-                            Bulma.button.a [
-                                prop.children [
-                                    Html.i [ prop.className "fas fa-plus"; prop.style [ style.marginRight 5 ] ]
-                                    Html.text "Add New Recipe"
-                                ]
-
-                                prop.onClick (fun _ -> (dispatch CreateRecipe))
-                            ]
-                        ]
-                        yield! Array.map (recipeRow dispatch) model.Recipes
-                    ]
-
+                    recipeList dispatch model.Recipes model.RecipeSearchTerm
                     card "Josh's Test" [ Html.text "Hello!" ]
                 ]
             ]
-            Bulma.modal [
-                prop.id "edit-modal"
-                if model.EditingModalStatus = Open then
-                    Bulma.modal.isActive
-                prop.children [
-                    Bulma.modalBackground []
-                    Bulma.modalContent [ Bulma.box [ Html.h1 "Add a recipe"; recipeBuilder model dispatch ] ]
-                    Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
-                ]
-            ]
+            editRecipeModal dispatch model
             deleteConfirmModal dispatch model.DeleteConfirmModalStatus
         ]
     ]
