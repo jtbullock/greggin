@@ -262,10 +262,18 @@ let recipeBuilder model dispatch =
             ]
         ]
         Html.div [
-            Html.button [
+            Bulma.button.button [
+                Bulma.color.isPrimary
                 prop.text "Save"
                 prop.style [ style.marginTop 20 ]
                 prop.onClick (fun _ -> dispatch SaveRecipe)
+            ]
+            Bulma.button.button [
+                Bulma.color.isInfo
+                Bulma.button.isInverted
+                prop.text "Cancel"
+                prop.style [ style.marginTop 20 ]
+                prop.onClick (fun _ -> dispatch CancelCreateRecipe)
             ]
         ]
     // ]
@@ -309,10 +317,10 @@ let deleteConfirmModal dispatch (modalStatus: DeleteModalStatus) =
                 Bulma.modalBackground []
                 Bulma.modalContent [
                     Bulma.box [
-                        Html.h1 "Delete Confirmation"
-                        Html.text "Are you sure you want to delete recipe "
+                        Bulma.subtitle "Delete Confirmation"
+                        Html.text "Are you sure you want to delete recipe '"
                         Html.strong recipeName
-                        Html.text "?"
+                        Html.text "'?"
 
                         Html.div [
                             prop.style [ style.marginTop 20 ]
@@ -343,7 +351,7 @@ let editRecipeModal dispatch model =
             Bulma.modal.isActive
         prop.children [
             Bulma.modalBackground []
-            Bulma.modalContent [ Bulma.box [ Html.h1 "Add a recipe"; recipeBuilder model dispatch ] ]
+            Bulma.modalContent [ Bulma.box [ Bulma.subtitle "Add a recipe"; recipeBuilder model dispatch ] ]
             Bulma.modalClose [ prop.onClick (fun _ -> (dispatch CancelCreateRecipe)) ]
         ]
     ]
