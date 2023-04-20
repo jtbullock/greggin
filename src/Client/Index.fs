@@ -181,6 +181,14 @@ let column (title: string) (content: ReactElement list) =
 let icon iconName =
     Html.i [ prop.className (sprintf "fas %s" iconName) ]
 
+let iconButton iconName text =
+    Bulma.button.button [
+        prop.children [
+            Html.i [ prop.style[style.marginRight 10]; prop.className (sprintf "fas %s" iconName) ]
+            Html.text "Run Report"
+        ]
+    ]
+
 let parseFloat s =
     try
         Some(float s)
@@ -419,7 +427,7 @@ let recipeList dispatch recipes (searchTerm: string) =
         ]
         Html.div [
             prop.style [ style.textAlign.center; style.padding (10, 0) ]
-            prop.children[Bulma.button.button [ prop.children [ icon "fa-plus"; Html.text "Run Report" ] ]]
+            prop.children[iconButton "fa-plus" "Run Report"]
         ]
     ]
 
