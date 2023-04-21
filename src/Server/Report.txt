@@ -1,3 +1,36 @@
+(def recipes
+  {"Integrated Logic Circuit" [[ "Resistor" 2 ]
+                                [ "Steel Plate" 1 ]
+                                [ "Vacuum Tube" 2 ]
+                                [ "Coated Circuit Board" 1 ]
+                                [ "1x Red Alloy Cable" 3 ]]
+
+   "Resistor" [[ "Paper" 0.67 ]
+                [ "Coal Dust" 0.3 ]
+                [ "1x Copper Wire" 0.3 ]]
+
+   "Vacuum Tube" [[ "Paper" 2 ]
+                  [ "Glass Tube" 1 ]
+                  [ "1x Copper Wire" 3 ]]
+
+   "Coated Circuit Board" [[ "Sticky Resin" 0.67 ]
+                           [ "Wood Plank" 1 ]]
+
+   "1x Red Alloy Cable" [[ "1x Red Alloy Wire" 1 ]
+                         [ "String" 1 ]
+                         [ "Black Carpet" 1 ]]
+
+   "Electric Motor (LV)" [[ "1x Tin Cable" 2 ]
+                          [ "1x Copper wire" 4 ]
+                          [ "Steel Rod" 2 ]
+                          [ "Magnetic Steel Rod" 1 ]]
+
+   "1x Tin Cable" [[ "1x Tin wire" 1 ]
+                   [ "Black Carpet" 1 ]
+                   [ "String" 1 ]]
+
+   })
+
 // (->> ["Electric Motor (LV)" 1]
 //      get-thing
 //      compress-thing
