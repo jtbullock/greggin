@@ -31,6 +31,17 @@
 
    })
 
+(defn get-ingredients
+  [recipeName amount]
+  (let [ingredients (get recipes recipeName)]
+    (if (nil? ingredients)
+      nil
+      (vec
+      (map
+        (fn [[name amt]] [name (* amt amount)])
+        (get recipes recipeName)))
+        )))
+
 // (->> ["Electric Motor (LV)" 1]
 //      get-thing
 //      compress-thing
