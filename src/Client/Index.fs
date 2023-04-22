@@ -210,7 +210,7 @@ let update msg model =
         },
         Cmd.none
     | RunReport -> model, Cmd.OfAsync.either dojoApi.GetReport model.SelectedRecipes ReportFinished Error
-    | ReportFinished report -> { model with Report = Some( report ) }, Cmd.none
+    | ReportFinished report -> { model with Report = Some(report) }, Cmd.none
 
 // ***************
 // View
@@ -443,7 +443,7 @@ let reportSetup dispatch (recipes: Ingredient list) =
 
         Html.div [
             prop.style [
-                style.overflow.scroll
+                style.overflowY.auto
                 style.border (1, borderStyle.solid, color.rgb (219, 219, 219))
                 style.flexGrow 1
                 style.margin (20, 0)
@@ -464,7 +464,7 @@ let recipeList dispatch (recipes: (bool * Recipe) array) (searchTerm: string) =
 
     Html.div [
         prop.style [
-            style.overflow.scroll
+            style.overflowY.auto
             style.border (1, borderStyle.solid, color.rgb (219, 219, 219))
             style.flexGrow 1
             style.marginTop 20
@@ -561,13 +561,11 @@ let deleteConfirmation dispatch (recipeName: string) =
 let printStage (stage: CraftingStage) =
     Html.div [
         Bulma.subtitle $"Stage %i{stage.Stage}"
-        yield! List.map (fun (i:Ingredient) -> Html.div[ Html.text $"%f{i.Amount} %s{i.Name}"]) stage.Ingredients
+        yield! List.map (fun (i: Ingredient) -> Html.div[Html.text $"%f{i.Amount} %s{i.Name}"]) stage.Ingredients
     ]
 
-let printReport (report:Report) =
-    Html.div [
-        yield! List.map printStage report.Stages
-    ]
+let printReport (report: Report) =
+    Html.div [ yield! List.map printStage report.Stages ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
