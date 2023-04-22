@@ -4,6 +4,7 @@ open Elmish
 open Feliz
 open Feliz.Bulma
 open Fable.Remoting.Client
+open Feliz.Styles
 open Shared
 
 // *************
@@ -218,7 +219,7 @@ let update msg model =
 let column (content: ReactElement list) =
     Html.div [
         prop.style [
-            style.width 400
+            style.minWidth 400
             style.display.flex
             style.flexDirection.column
             style.overflow.hidden
@@ -452,7 +453,12 @@ let reportSetup dispatch (recipes: Ingredient list) =
             prop.children (List.map (fun r -> reportIngredientRow dispatch r) recipes)
         ]
 
-        iconButton "fa-play" "Run Report" (fun _ -> (dispatch RunReport))
+        Html.div [
+            prop.style [style.marginBottom 20; style.textAlign.center]
+            prop.children [
+                iconButton "fa-play" "Run Report" (fun _ -> (dispatch RunReport))
+            ]
+        ]
 
     ]
 
@@ -479,7 +485,7 @@ let recipeList dispatch (recipes: (bool * Recipe) array) (searchTerm: string) =
 
 let pageContainer (content: ReactElement list) =
     Html.div [
-        prop.style [ style.display.flex; style.height (length.vh 100) ]
+        prop.style [ style.display.flex; style.height (length.vh 100); style.overflowX.auto ]
         prop.children content
     ]
 
@@ -558,14 +564,46 @@ let deleteConfirmation dispatch (recipeName: string) =
         ]
     ]
 
+let printReportIngredientRow (ingredient:Ingredient) =
+    Html.tr [
+        Html.td [prop.text ingredient.Amount]
+        Html.td [prop.text ingredient.Name]
+    ]
+
 let printStage (stage: CraftingStage) =
     Html.div [
-        Bulma.subtitle $"Stage %i{stage.Stage}"
-        yield! List.map (fun (i: Ingredient) -> Html.div[Html.text $"%f{i.Amount} %s{i.Name}"]) stage.Ingredients
+        prop.style [ style.minWidth 300; style.marginRight 40 ]
+        prop.children [
+            Bulma.subtitle $"Stage %i{stage.Stage}"
+
+            Html.div [
+                prop.style [ style.overflowY.auto  ]
+                prop.children [
+                    Bulma.table [
+                        prop.style [ style.width (length.percent 100) ]
+
+                        prop.children [
+                            Html.thead [
+                                Html.tr [
+                                    Html.th [prop.text "Amount"; prop.width 120]
+                                    Html.th [prop.text "Ingredient"]
+                                ]
+                            ]
+                            Html.tbody [
+                                yield! List.map printReportIngredientRow stage.Ingredients
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
     ]
 
 let printReport (report: Report) =
-    Html.div [ yield! List.map printStage report.Stages ]
+    Html.div [
+        prop.style [style.display.flex; style.width (400 * report.Stages.Length); style.padding 20]
+        prop.children (List.map printStage report.Stages)
+    ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
@@ -580,7 +618,7 @@ let view (model: Model) dispatch =
             ]
 
             match model.Report with
-            | Some report -> column [ printReport report ]
+            | Some report -> printReport report
             | None -> Html.none
         ]
     ]
