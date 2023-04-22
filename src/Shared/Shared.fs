@@ -2,6 +2,15 @@ namespace Shared
 
 type Ingredient = { Amount: double; Name: string }
 
+type CraftingStage = {
+    Stage: int
+    Ingredients: Ingredient list
+}
+
+type Report = {
+    Stages: CraftingStage list
+}
+
 type Recipe = {
     Name: string
     Ingredients: Ingredient list
