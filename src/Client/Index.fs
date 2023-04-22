@@ -26,6 +26,7 @@ type Model =
         RecipeSearchTerm: string
         LeftColumnActivity: LeftColumnActivity
         SelectedRecipes: Ingredient list
+        Report: Report option
     }
 
     static member Init = {
@@ -38,6 +39,7 @@ type Model =
         RecipeSearchTerm = ""
         LeftColumnActivity = ManageRecipes
         SelectedRecipes = List.empty<Ingredient>
+        Report = None
     }
 
 // ***************
@@ -68,6 +70,8 @@ type Msg =
     | CancelReportPrep
     | SetSelectionQuantity of (string * double)
     | ResetRecipeSelection
+    | RunReport
+    | ReportFinished of Report
 
 let dojoApi =
     Remoting.createApi ()
@@ -205,6 +209,8 @@ let update msg model =
             SelectedRecipes = List.empty<Ingredient>
         },
         Cmd.none
+    | RunReport -> model, Cmd.OfAsync.either dojoApi.GetReport model.SelectedRecipes ReportFinished Error
+    | ReportFinished report -> { model with Report = Some( report ) }, Cmd.none
 
 // ***************
 // View
@@ -446,7 +452,7 @@ let reportSetup dispatch (recipes: Ingredient list) =
             prop.children (List.map (fun r -> reportIngredientRow dispatch r) recipes)
         ]
 
-        iconButton "fa-play" "Run Report" (fun _ -> (dispatch CancelReportPrep))
+        iconButton "fa-play" "Run Report" (fun _ -> (dispatch RunReport))
 
     ]
 
@@ -552,6 +558,17 @@ let deleteConfirmation dispatch (recipeName: string) =
         ]
     ]
 
+let printStage (stage: CraftingStage) =
+    Html.div [
+        Bulma.subtitle $"Stage %i{stage.Stage}"
+        yield! List.map (fun (i:Ingredient) -> Html.div[ Html.text $"%f{i.Amount} %s{i.Name}"]) stage.Ingredients
+    ]
+
+let printReport (report:Report) =
+    Html.div [
+        yield! List.map printStage report.Stages
+    ]
+
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
 let view (model: Model) dispatch =
     React.fragment [
@@ -563,6 +580,9 @@ let view (model: Model) dispatch =
                 | ConfirmDelete recipeName -> deleteConfirmation dispatch recipeName
                 | PrepReport -> reportSetup dispatch model.SelectedRecipes
             ]
-        //column "Josh's Test" [ Html.text "Report area" ]
+
+            match model.Report with
+            | Some report -> column [ printReport report ]
+            | None -> Html.none
         ]
     ]

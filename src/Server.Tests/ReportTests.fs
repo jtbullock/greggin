@@ -11,7 +11,7 @@ open ReportTestData
 [<Test>]
 let flattenWithStagesTest () =
     let result =
-        flattenWithStages
+        flattenIntoCraftingStages
             sourceRecipesMap
             {
                 Amount = 1
@@ -44,18 +44,6 @@ let upsertIngredientToMap_Updates () =
     Assert.AreEqual(expected, result)
 
 [<Test>]
-
-//
-// [<Test>]
-// let groupTest () =
-//     let result =
-//         flattenWithStages
-//             sourceRecipesMap
-//             {
-//                 Amount = 1
-//                 Name = "Integrated Logic Circuit"
-//             }
-//
-//     let grouped = result |> groupStages
-//
-//     Assert.IsTrue(grouped.Count = 4)
+let runTheThing () =
+    let result = runReport sourceRecipesMap {Name = "Integrated Logic Circuit"; Amount = 1.0}
+    Assert.IsTrue(result.Stages.Length > 0)

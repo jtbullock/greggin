@@ -5,6 +5,7 @@ open System.Text.Json
 open Azure.Storage.Blobs
 open System.IO
 open Microsoft.Extensions.Configuration
+open Report
 
 type Config =
     {
@@ -73,6 +74,13 @@ let deleteRecipe blobClient (recipeName: string) : Recipe array Async = async {
     return recipeMapToResponseArray removed
 }
 
+let getReport blobClient (selection: Ingredient list) = async {
+    let! recipes = getRecipesDict blobClient
+    let tempReportRecipeName = "__report-request__"
+    let recipesWithRequest = Map.add tempReportRecipeName selection recipes
+    return runReport recipesWithRequest { Name = tempReportRecipeName; Amount = 1}
+}
+
 let dojoApi (config: IConfiguration) =
     let blob = config |> Config.FromIConfiguration |> getBlob
 
@@ -80,4 +88,5 @@ let dojoApi (config: IConfiguration) =
         PostRecipe = postRecipe blob
         GetRecipes = getRecipes blob
         DeleteRecipe = deleteRecipe blob
+        GetReport = getReport blob
     }

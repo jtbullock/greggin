@@ -21,33 +21,21 @@ let getIngredients (recipes: Map<string, Ingredient list>) (recipeName: string) 
         )
     | None -> None
 
-let rec flattenWithStages (recipes: Map<string, Ingredient list>) (ingredient: Ingredient) =
+let rec flattenIntoCraftingStages (recipes: Map<string, Ingredient list>) (ingredient: Ingredient) =
     match (getIngredients recipes ingredient.Name ingredient.Amount) with
     | Some ingredients ->
         let childIngredients =
             ingredients
-            |> List.map (flattenWithStages recipes)
+            |> List.map (flattenIntoCraftingStages recipes)
             |> List.concat
-        let currentStage = childIngredients |> List.map fst |> List.max |> (+) 1
-        (currentStage, ingredient) :: childIngredients
+        let currentCraftingStage = childIngredients |> List.map fst |> List.max |> (+) 1
+        (currentCraftingStage, ingredient) :: childIngredients
     | None -> [ (0, ingredient) ]
 
-// let initOrAppend (ingredient:Ingredient) mapOption =
-//     match mapOption with
-//     //| Some list -> ingredient :: list
-//     | Some map -> Map.change ingredient.Name (fun mapValue -> Some( returnOrMerge ingredient mapValue )) map
-//     | None -> Map.ofList [(ingredient.Name, ingredient.Amount)]
-//
-// let addToGroupMap (map: Map<int, Map<string, double>>) (stage:int, ingredient:Ingredient) =
-//     Map.change stage (fun mapValue -> Some(initOrAppend ingredient mapValue)) map
-//
 let mapUpsert updateFn data keyValue =
     match keyValue with
     | Some x -> Some(updateFn x data)
     | None -> Some(data)
-
-// let mapUpsert updateFn data keyValue =
-//     mapUpsert updateFn id data keyValue
 
 let groupByStageAndName ((stage: int, ingredient: Ingredient)) =
     ((stage, ingredient.Name), ingredient.Amount)
@@ -62,30 +50,19 @@ let mergeByStageAndName (reportData: (int * Ingredient) list) =
     reportData
     |> List.map groupByStageAndName
     |> List.fold upsertIngredientToMap Map.empty<int * string, double>
-
-let groupByStage (map: Map<(int * string), double>) =
-    map
     |> Map.toList
-    |> List.fold (fun acc ((stage, name), amt) -> Map.change stage (mapUpsert List.append [{Name=name; Amount=amt}]) acc ) Map.empty<int, Ingredient list>
+    |> List.map (fun ((stage, name), amt) -> (stage, {Name=name; Amount=amt}))
+
+let groupByStage (ingredientsByStage: (int * Ingredient) list) =
+    ingredientsByStage
+    |> List.fold
+           (fun acc (craftingStage, ingredient) -> Map.change craftingStage (mapUpsert List.append [ingredient]) acc )
+           Map.empty<int, Ingredient list>
+    |> Map.toList
+    |> List.map (fun (stage, ingredients) -> {Stage = stage; Ingredients = ingredients})
 
 let runReport recipes ingredient =
-    flattenWithStages recipes ingredient
-    |> mergeByStageAndName
-    |> groupByStage
-
-// let addToGroupMap (map: Map<int, Map<string, double>>) (stage:int, ingredient:Ingredient) =
-//     Map.change stage (mapUpsert
-//                           (fun (existing: Map<string,double>) (newVal:Ingredient) -> upsertIngredientToMap existing newVal)
-//                           (fun (x:Ingredient) -> Map.ofList [(x.Name, x.Amount)])
-//                           ingredient)
-//                           map
-
-//insert: new Map<string,double>
-//upsert: upsertIngredientToMap (ingredient:Ingredient) (map:Map<string, double>)
-
-// let groupStages (data: (int * Ingredient) list): Map<int, Ingredient list> =
-//     List.fold addToGroupMap Map.empty<int, Map<string, double>> data
-
-
-
-
+    { Stages =
+        flattenIntoCraftingStages recipes ingredient
+        |> mergeByStageAndName
+        |> groupByStage }

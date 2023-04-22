@@ -23,6 +23,7 @@ type IDojoApi = {
     PostRecipe: Recipe -> Recipe array Async
     GetRecipes: unit -> Recipe array Async
     DeleteRecipe: string -> Recipe array Async
+    GetReport: Ingredient list -> Report Async
 }
 
 /// Provides validation on data. Shared across both client and server.
