@@ -574,7 +574,7 @@ let printReportIngredientRow (ingredient:Ingredient) =
 
 let printStage (stage: CraftingStage) =
     Html.div [
-        prop.style [ style.minWidth 400; style.marginRight 40 ]
+        prop.style [ style.minWidth 350; style.marginRight 40 ]
         prop.children [
             Html.div [
                 prop.style [

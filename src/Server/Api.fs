@@ -78,7 +78,8 @@ let getReport blobClient (selection: Ingredient list) = async {
     let! recipes = getRecipesDict blobClient
     let tempReportRecipeName = "__report-request__"
     let recipesWithRequest = Map.add tempReportRecipeName selection recipes
-    return runReport recipesWithRequest { Name = tempReportRecipeName; Amount = 1}
+    let report = runReport recipesWithRequest { Name = tempReportRecipeName; Amount = 1}
+    return { report with Stages = List.take (report.Stages.Length - 1) report.Stages }
 }
 
 let dojoApi (config: IConfiguration) =
