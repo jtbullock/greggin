@@ -1,6 +1,7 @@
 module Index
 
 open Elmish
+open Fable.FontAwesome.Free
 open Feliz
 open Feliz.Bulma
 open Fable.Remoting.Client
@@ -566,15 +567,25 @@ let deleteConfirmation dispatch (recipeName: string) =
 
 let printReportIngredientRow (ingredient:Ingredient) =
     Html.tr [
+        Html.td [Bulma.input.checkbox []]
         Html.td [prop.text ingredient.Amount]
         Html.td [prop.text ingredient.Name]
     ]
 
 let printStage (stage: CraftingStage) =
     Html.div [
-        prop.style [ style.minWidth 300; style.marginRight 40 ]
+        prop.style [ style.minWidth 400; style.marginRight 40 ]
         prop.children [
-            Bulma.subtitle $"Stage %i{stage.Stage}"
+            Html.div [
+                prop.style [
+                    style.textAlign.center
+                    style.borderBottom (1, borderStyle.solid, color.lightGray)
+                    style.marginBottom 10
+                    style.paddingBottom 8
+                ]
+                prop.children ( Bulma.subtitle $"Stage %i{stage.Stage}")
+            ]
+
 
             Html.div [
                 prop.style [ style.overflowY.auto  ]
@@ -585,7 +596,8 @@ let printStage (stage: CraftingStage) =
                         prop.children [
                             Html.thead [
                                 Html.tr [
-                                    Html.th [prop.text "Amount"; prop.width 120]
+                                    Html.th [prop.width 30]
+                                    Html.th [prop.text "Amt"; prop.width 80]
                                     Html.th [prop.text "Ingredient"]
                                 ]
                             ]
