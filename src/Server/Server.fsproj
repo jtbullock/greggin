@@ -5,6 +5,7 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Report.fs" />
     <None Include="paket.references" />
     <Compile Include="Api.fs" />
     <Compile Include="Server.fs" />

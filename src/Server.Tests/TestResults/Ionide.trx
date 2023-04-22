@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="667c94ac-dacf-434e-9696-47f77916095f" name="@Joshs-M1-MacBook-Air 2023-04-22 09:27:50" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2023-04-22T09:27:50.8698060-04:00" queuing="2023-04-22T09:27:50.8698060-04:00" start="2023-04-22T09:27:50.4546770-04:00" finish="2023-04-22T09:27:50.8700250-04:00" />
+  <TestSettings name="default" id="ce845d57-58aa-4aa1-bec0-a1760932028a">
+    <Deployment runDeploymentRoot="_Joshs-M1-MacBook-Air_2023-04-22_09_27_50" />
+  </TestSettings>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="0" executed="0" passed="0" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>NUnit Adapter 4.2.0.0: Test execution started
+Running selected tests in /Users/josh/Code/SAFE-Greggin/src/Server.Tests/bin/Debug/net6.0/Server.Tests.dll
+   NUnit failed to load /Users/josh/Code/SAFE-Greggin/src/Server.Tests/bin/Debug/net6.0/Server.Tests.dll
+NUnit Adapter 4.2.0.0: Test execution complete
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="Joshs-M1-MacBook-Air" outcome="Warning" timestamp="2023-04-22T09:27:50.8296800-04:00">
+        <Text>No test matches the given testcase filter `(FullyQualifiedName=Server.Tests.Test1)` in /Users/josh/Code/SAFE-Greggin/src/Server.Tests/bin/Debug/net6.0/Server.Tests.dll</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
