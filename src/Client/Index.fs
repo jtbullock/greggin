@@ -29,19 +29,21 @@ type Model =
         LeftColumnActivity: LeftColumnActivity
         SelectedRecipes: Ingredient list
         Report: Report option
+        CompletedRecipes: string list
     }
 
     static member Init = {
         RecipeForm_Name = ""
-        RecipeForm_Ingredients = List.empty<Ingredient>
+        RecipeForm_Ingredients = []
         RecipeForm_NewIngredientQuantity = 0.0
         RecipeForm_NewIngredientName = ""
 
         Recipes = Array.empty
         RecipeSearchTerm = ""
         LeftColumnActivity = ManageRecipes
-        SelectedRecipes = List.empty<Ingredient>
+        SelectedRecipes = []
         Report = None
+        CompletedRecipes = []
     }
 
 // ***************
@@ -74,6 +76,9 @@ type Msg =
     | ResetRecipeSelection
     | RunReport
     | ReportFinished of Report
+    | RecipeCompleted of string
+    | RecipeUncompleted of string
+    | ResetCompleted
 
 let dojoApi =
     Remoting.createApi ()
@@ -213,6 +218,9 @@ let update msg model =
         Cmd.none
     | RunReport -> model, Cmd.OfAsync.either dojoApi.GetReport model.SelectedRecipes ReportFinished Error
     | ReportFinished report -> { model with Report = Some(report) }, Cmd.none
+    | RecipeCompleted recipeName -> { model with CompletedRecipes = (recipeName :: model.CompletedRecipes) }, Cmd.none
+    | RecipeUncompleted recipeName -> { model with CompletedRecipes = (List.filter (fun r -> r <> recipeName) model.CompletedRecipes) }, Cmd.none
+    | ResetCompleted -> { model with CompletedRecipes = [] }, Cmd.none
 
 // ***************
 // View
@@ -565,14 +573,29 @@ let deleteConfirmation dispatch (recipeName: string) =
         ]
     ]
 
-let printReportIngredientRow (ingredient:Ingredient) =
+let printReportIngredientRow dispatch (completedRecipes:string list) (ingredient:Ingredient) =
+    let isCompleted = (List.contains ingredient.Name completedRecipes)
+    let textStyle = if isCompleted then style.textDecoration.lineThrough else style.textDecoration.none;
     Html.tr [
-        Html.td [Bulma.input.checkbox []]
-        Html.td [prop.text ingredient.Amount]
-        Html.td [prop.text ingredient.Name]
+        Html.td [
+            Bulma.input.checkbox [
+                prop.isChecked isCompleted
+                prop.onChange (fun (ckd:bool) -> ingredient.Name
+                                                 |> (if ckd then RecipeCompleted else RecipeUncompleted)
+                                                 |> dispatch)
+            ]
+        ]
+        Html.td [
+            prop.style [ textStyle ]
+            prop.text ingredient.Amount
+        ]
+        Html.td [
+            prop.style [textStyle]
+            prop.text ingredient.Name
+        ]
     ]
 
-let printStage (stage: CraftingStage) =
+let printStage dispatch (completedRecipes: string list) (stage: CraftingStage) (title: string) =
     Html.div [
         prop.style [ style.minWidth 350; style.marginRight 40 ]
         prop.children [
@@ -583,7 +606,7 @@ let printStage (stage: CraftingStage) =
                     style.marginBottom 10
                     style.paddingBottom 8
                 ]
-                prop.children ( Bulma.subtitle $"Stage %i{stage.Stage}")
+                prop.children ( Bulma.subtitle title )
             ]
 
 
@@ -602,7 +625,7 @@ let printStage (stage: CraftingStage) =
                                 ]
                             ]
                             Html.tbody [
-                                yield! List.map printReportIngredientRow stage.Ingredients
+                                yield! List.map (printReportIngredientRow dispatch completedRecipes) stage.Ingredients
                             ]
                         ]
                     ]
@@ -611,10 +634,10 @@ let printStage (stage: CraftingStage) =
         ]
     ]
 
-let printReport (report: Report) =
+let printReport dispatch (report: Report) (completedRecipes: string list) =
     Html.div [
-        prop.style [style.display.flex; style.width (400 * report.Stages.Length); style.padding 20]
-        prop.children (List.map printStage report.Stages)
+        prop.style [style.display.flex; style.width (400 * report.Stages.Length)]
+        prop.children (List.mapi (fun i s -> printStage dispatch completedRecipes s (if (i = report.Stages.Length - 1) then "Final products" else $"Stage %i{s.Stage + 1}") ) report.Stages)
     ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
@@ -630,7 +653,29 @@ let view (model: Model) dispatch =
             ]
 
             match model.Report with
-            | Some report -> printReport report
+            | Some report ->
+                Html.div [
+                    prop.style [ style.padding 20 ]
+                    prop.children [
+                        Html.div [
+                            prop.style [style.display.flex; style.alignItems.center; style.marginBottom 10]
+                            prop.children [
+                                Html.span [
+                                    prop.style [ style.fontWeight 400; style.fontSize (length.rem 1.25); style.marginRight 20 ]
+                                    prop.text "Report"
+                                ]
+                                Html.a [
+                                    prop.href "#"
+                                    prop.text "Uncheck All"
+                                    prop.onClick (fun _ -> (dispatch ResetCompleted))
+                                ]
+                            ]
+                        ]
+
+
+                        printReport dispatch report model.CompletedRecipes
+                    ]
+                ]
             | None -> Html.none
         ]
     ]
