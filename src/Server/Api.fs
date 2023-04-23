@@ -74,11 +74,13 @@ let deleteRecipe blobClient (recipeName: string) : Recipe array Async = async {
     return recipeMapToResponseArray removed
 }
 
-let getReport blobClient (selection: Ingredient list) = async {
+let getReport blobClient (selection: Ingredient list, excludes: string list) = async {
     let! recipes = getRecipesDict blobClient
     let tempReportRecipeName = "__report-request__"
     let recipesWithRequest = Map.add tempReportRecipeName selection recipes
-    let report = runReport recipesWithRequest { Name = tempReportRecipeName; Amount = 1}
+    let recipesWithRequestAndExclude = (Map.filter (fun (key:string) _ -> not (List.contains key excludes)) recipesWithRequest)
+
+    let report = runReport recipesWithRequestAndExclude { Name = tempReportRecipeName; Amount = 1}
     return { report with Stages = List.take (report.Stages.Length - 1) report.Stages }
 }
 

@@ -30,6 +30,7 @@ type Model =
         SelectedRecipes: Ingredient list
         Report: Report option
         CompletedRecipes: string list
+        ExcludedRecipes: string list
     }
 
     static member Init = {
@@ -44,6 +45,7 @@ type Model =
         SelectedRecipes = []
         Report = None
         CompletedRecipes = []
+        ExcludedRecipes = []
     }
 
 // ***************
@@ -79,6 +81,8 @@ type Msg =
     | RecipeCompleted of string
     | RecipeUncompleted of string
     | ResetCompleted
+    | ExcludeRecipe of string
+    | IncludeRecipe of string
 
 let dojoApi =
     Remoting.createApi ()
@@ -94,6 +98,7 @@ let getRecipeFormRecipe (model) = {
 }
 
 let update msg model =
+
     match msg with
     | Error _ -> model, Cmd.none
     | RecipeSaved r ->
@@ -216,11 +221,13 @@ let update msg model =
             SelectedRecipes = List.empty<Ingredient>
         },
         Cmd.none
-    | RunReport -> model, Cmd.OfAsync.either dojoApi.GetReport model.SelectedRecipes ReportFinished Error
+    | RunReport -> model, Cmd.OfAsync.either dojoApi.GetReport (model.SelectedRecipes, model.ExcludedRecipes) ReportFinished Error
     | ReportFinished report -> { model with Report = Some(report) }, Cmd.none
     | RecipeCompleted recipeName -> { model with CompletedRecipes = (recipeName :: model.CompletedRecipes) }, Cmd.none
     | RecipeUncompleted recipeName -> { model with CompletedRecipes = (List.filter (fun r -> r <> recipeName) model.CompletedRecipes) }, Cmd.none
     | ResetCompleted -> { model with CompletedRecipes = [] }, Cmd.none
+    | ExcludeRecipe recipeName -> { model with ExcludedRecipes = (recipeName :: model.ExcludedRecipes) }, Cmd.ofMsg RunReport
+    | IncludeRecipe recipeName -> { model with ExcludedRecipes = (List.filter (fun r -> r <> recipeName) model.ExcludedRecipes) }, Cmd.ofMsg RunReport
 
 // ***************
 // View
@@ -573,9 +580,11 @@ let deleteConfirmation dispatch (recipeName: string) =
         ]
     ]
 
-let printReportIngredientRow dispatch (completedRecipes:string list) (ingredient:Ingredient) =
+let printReportIngredientRow dispatch (excludeAllowed:bool) (completedRecipes:string list) (excludedReipces:string list) (ingredient:Ingredient) =
     let isCompleted = (List.contains ingredient.Name completedRecipes)
-    let textStyle = if isCompleted then style.textDecoration.lineThrough else style.textDecoration.none;
+    let isExcluded = excludeAllowed && (List.contains ingredient.Name excludedReipces)
+    let textStyle = if isCompleted then style.textDecoration.lineThrough else style.textDecoration.none
+
     Html.tr [
         Html.td [
             Bulma.input.checkbox [
@@ -593,9 +602,29 @@ let printReportIngredientRow dispatch (completedRecipes:string list) (ingredient
             prop.style [textStyle]
             prop.text ingredient.Name
         ]
+        Html.td [
+            match (isExcluded, excludeAllowed) with
+            | true, _ ->
+                Html.a [
+                    prop.href "#"
+                    prop.children [
+                        Html.i [ prop.className "fas fa-toggle-off" ]
+                    ]
+                    prop.onClick (fun _ -> (dispatch (IncludeRecipe ingredient.Name)))
+                ]
+            | false, true ->
+                Html.a [
+                    prop.href "#"
+                    prop.children [
+                        Html.i [ prop.className "fas fa-toggle-on" ]
+                    ]
+                    prop.onClick (fun _ -> (dispatch (ExcludeRecipe ingredient.Name)))
+                ]
+            | _ -> Html.none
+        ]
     ]
 
-let printStage dispatch (completedRecipes: string list) (stage: CraftingStage) (title: string) =
+let printStage dispatch allowExclude (completedRecipes: string list) (excludedRecipes: string list) (stage: CraftingStage) (title: string) =
     Html.div [
         prop.style [ style.minWidth 350; style.marginRight 40 ]
         prop.children [
@@ -622,10 +651,11 @@ let printStage dispatch (completedRecipes: string list) (stage: CraftingStage) (
                                     Html.th [prop.width 30]
                                     Html.th [prop.text "Amt"; prop.width 80]
                                     Html.th [prop.text "Ingredient"]
+                                    Html.th [prop.width 30]
                                 ]
                             ]
                             Html.tbody [
-                                yield! List.map (printReportIngredientRow dispatch completedRecipes) stage.Ingredients
+                                yield! List.map (printReportIngredientRow dispatch allowExclude completedRecipes excludedRecipes) stage.Ingredients
                             ]
                         ]
                     ]
@@ -634,10 +664,10 @@ let printStage dispatch (completedRecipes: string list) (stage: CraftingStage) (
         ]
     ]
 
-let printReport dispatch (report: Report) (completedRecipes: string list) =
+let printReport dispatch (report: Report) (completedRecipes: string list) (excludedRecipes: string list) =
     Html.div [
         prop.style [style.display.flex; style.width (400 * report.Stages.Length)]
-        prop.children (List.mapi (fun i s -> printStage dispatch completedRecipes s (if (i = report.Stages.Length - 1) then "Final products" else $"Stage %i{s.Stage + 1}") ) report.Stages)
+        prop.children (List.mapi (fun i s -> printStage dispatch (i <> 0 && i <> report.Stages.Length - 1) completedRecipes excludedRecipes s (if (i = report.Stages.Length - 1) then "Final products" else $"Stage %i{s.Stage + 1}") ) report.Stages)
     ]
 
 /// The view function knows how to render the UI given a model, as well as to dispatch new messages based on user actions.
@@ -673,7 +703,7 @@ let view (model: Model) dispatch =
                         ]
 
 
-                        printReport dispatch report model.CompletedRecipes
+                        printReport dispatch report model.CompletedRecipes model.ExcludedRecipes
                     ]
                 ]
             | None -> Html.none
